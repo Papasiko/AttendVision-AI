@@ -120,6 +120,9 @@ Camera access works on `localhost`. If the dashboard is accessed from another de
 | POST | `/api/v1/face/recognize` | Create a recognition candidate for review |
 | GET | `/api/v1/attendance/events` | List attendance events |
 | PATCH | `/api/v1/attendance/events/{id}/review` | Approve or reject a candidate |
+| GET | `/api/v1/reports/daily?day=YYYY-MM-DD` | Daily summary based on each employee's latest approved event |
+| GET | `/api/v1/reports/period?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` | Date-range event and review statistics |
+| GET | `/api/v1/reports/export.csv?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` | Server-generated UTF-8 CSV export (up to 367 days) |
 
 All biometric endpoints require administrator authentication. Uploaded files must be JPEG, PNG, or WebP and no larger than 5 MB.
 
