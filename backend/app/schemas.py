@@ -20,6 +20,7 @@ class EmployeeRead(EmployeeCreate):
     id: int
     status: str
     created_at: datetime
+    face_enrolled: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 
