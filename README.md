@@ -1,45 +1,131 @@
 # AttendVision AI
-سامانه وب حضور و غیاب با معماری Edge-first، API مبتنی بر FastAPI، PostgreSQL و داشبورد فارسی Next.js.
 
-## وضعیت
-این نسخه MVP برای مدیریت کارکنان، دستگاه‌ها، رویدادهای تردد، بازبینی انسانی، گزارش روزانه و دسترسی مدیر فراهم می‌کند. این نسخه هنوز سامانه تشخیص چهره آماده بهره‌برداری نیست؛ دریافت RTSP، مدل تشخیص/تطبیق چهره و liveness/PAD تا زمان انتخاب سخت‌افزار و ارزیابی معتبر فعال نشده‌اند.
+A privacy-conscious, web-based attendance management system built with **FastAPI**, **PostgreSQL**, **Next.js**, and an experimental local face-matching pipeline.
 
-## قابلیت‌ها
-- احراز دسترسی مدیر و دستگاه با Bearer token مستقل
-- مدیریت کارکنان و دستگاه‌ها
-- ثبت رویداد با کلید idempotency
-- صف بازبینی و تأیید/رد با یادداشت
-- گزارش روزانه و خروجی CSV
-- ثبت audit log برای عملیات مدیریتی
-- داشبورد فارسی واکنش‌گرا و متصل به API
-- PostgreSQL، مهاجرت Alembic و تست‌های API
+> **Project status:** Development / evaluation MVP. This repository is not a production-certified biometric attendance system. Face matching is experimental, requires human review, and must not be used as the sole basis for employment, disciplinary, or access-control decisions.
 
-## اجرا با Docker
-نیازمند Docker Desktop و Docker Compose:
+## Features
+
+- Administrator API access using a Bearer token
+- Employee and device management
+- Idempotent attendance event ingestion
+- Human review queue with approval and rejection
+- Daily attendance summaries and CSV export
+- Audit logging for administrative actions
+- Browser-based laptop webcam preview
+- Explicit, operator-confirmed face enrollment
+- YuNet face detection and SFace feature extraction
+- Encrypted face templates; uploaded source frames are not intentionally persisted
+- PostgreSQL with Alembic migrations
+- Docker-based development environment
+
+## Architecture
+
+```text
+Laptop webcam -> Browser capture -> FastAPI -> YuNet / SFace
+                                      |
+                                      v
+                              Encrypted face template
+                                      |
+                                      v
+                              PostgreSQL database
+                                      |
+                                      v
+                         Pending attendance review
+                                      |
+                                      v
+                              Admin dashboard
+```
+
+The browser captures a still frame only after an operator presses an action button. The API processes the image in memory, extracts a face feature vector, and discards the uploaded image after the request. Only an encrypted feature template is stored for enrolled employees.
+
+## Requirements
+
+- Docker Desktop with Docker Compose
+- Git
+- Node.js 20 or newer (for the dashboard)
+- Python 3.11+ (only if running backend tools outside Docker)
+
+## Quick start
+
+### 1. Clone the repository
+
 ```bash
 git clone https://github.com/Papasiko/AttendVision-AI.git
 cd AttendVision-AI
+```
+
+### 2. Create local secrets
+
+Generate a Fernet-compatible encryption key:
+
+```bash
+python -c "import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
+```
+
+Create a `.env` file in the repository root:
+
+```dotenv
+ADMIN_API_TOKEN=replace-with-a-long-random-admin-secret
+DEVICE_API_TOKEN=replace-with-a-different-device-secret
+BIOMETRIC_ENCRYPTION_KEY=paste-the-generated-key-here
+FACE_MATCH_THRESHOLD=0.45
+```
+
+Keep this file private. Never commit secrets or real employee biometric data. Back up the encryption key securely: encrypted templates cannot be recovered if the key is lost.
+
+### 3. Start the API and database
+
+```bash
 docker compose up --build
 ```
-API: http://localhost:8000 · مستندات: http://localhost:8000/docs
 
-داشبورد در ترمینال دوم:
+The first build downloads the YuNet and SFace model files. API documentation is available at:
+
+- API health: http://localhost:8000/health
+- OpenAPI docs: http://localhost:8000/docs
+
+### 4. Start the dashboard
+
+Open a second terminal:
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-داشبورد: http://localhost:3000
 
-## توکن‌ها
-برای توسعه مقدارهای پیش‌فرض Docker قابل استفاده‌اند:
-- توکن مدیر: change-this-admin-token-before-deployment
-- توکن دستگاه: change-this-device-token-before-deployment
+Open http://localhost:3000 and sign in using the value of `ADMIN_API_TOKEN` from your root `.env` file.
 
-پیش از هر استقرار واقعی، هر دو را با مقادیر تصادفی طولانی جایگزین کنید. توکن مدیر را فقط در اختیار مدیران قرار دهید و توکن دستگاه را فقط روی Edge Node نگهداری کنید. HTTPS و مدیریت امن secrets برای محیط عملیاتی الزامی است.
+## Laptop webcam workflow
 
-## مهاجرت و تست
-در backend:
+1. Open the **Laptop Webcam** section in the dashboard.
+2. Allow the browser to access the camera.
+3. Select the intended webcam and start the preview.
+4. Create employee records in the **Employees** section.
+5. Obtain and document the employee's informed, freely given consent through your organization's approved process.
+6. Select the employee and use **Enroll Face Template**. The checkbox in the UI is an operator attestation; it is not a substitute for a consent record or legal review.
+7. Select **Check-in** or **Check-out** and press **Recognize and Submit for Review**.
+8. Review every candidate in the **Review Queue** before treating it as an attendance record.
+
+Camera access works on `localhost`. If the dashboard is accessed from another device, browsers generally require HTTPS to grant camera access.
+
+## API endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/v1/employees/{id}/face-enroll` | Enroll an employee face template |
+| DELETE | `/api/v1/employees/{id}/face-template` | Delete an employee face template |
+| POST | `/api/v1/face/recognize` | Create a recognition candidate for review |
+| GET | `/api/v1/attendance/events` | List attendance events |
+| PATCH | `/api/v1/attendance/events/{id}/review` | Approve or reject a candidate |
+
+All biometric endpoints require administrator authentication. Uploaded files must be JPEG, PNG, or WebP and no larger than 5 MB.
+
+## Development and tests
+
+From the `backend` directory:
+
 ```bash
 pip install -e ".[dev]"
 alembic upgrade head
@@ -47,36 +133,28 @@ pytest
 ruff check .
 ```
 
-## استفاده از وبکم لپ‌تاپ
-در داشبورد، پس از ورود به حساب، از منوی «وبکم لپ‌تاپ» دوربین را انتخاب و روشن کنید. مرورگر برای دسترسی به دوربین اجازه می‌خواهد؛ این قابلیت روی `localhost` در دسترس است و برای دسترسی از شبکه باید سایت با HTTPS ارائه شود. وبکم در این نسخه فقط پیش‌نمایش زنده محلی دارد و تصویر را ذخیره یا به سرور ارسال نمی‌کند؛ شناسایی چهره و ثبت خودکار تردد هنوز به موتور بینایی ماشین ارزیابی‌شده نیاز دارد.
+From the `frontend` directory:
 
-## دوربین و هوش مصنوعی
-قرارداد اتصال edge در پوشه vision است. پیش از استفاده واقعی باید مدل و سخت‌افزار مشخص، داده ارزیابی مجاز تهیه، نرخ خطا و عملکرد در نور و زاویه‌های مختلف سنجیده و مسیر جایگزین غیرزیست‌سنجی فراهم شود. هیچ دقتی ادعا نشده است.
-
-## وبکم لپ‌تاپ و تشخیص چهره آزمایشی
-
-داشبورد از وبکم مرورگر عکس می‌گیرد و فقط با فشردن دکمه اپراتور آن را برای API می‌فرستد. مدل‌های YuNet و SFace درون کانتینر API اجرا می‌شوند؛ فایل تصویر خام در برنامه ذخیره نمی‌شود و فقط قالب برداری رمزنگاری‌شده نگهداری می‌شود.
-
-### فعال‌سازی کلید رمزنگاری
-در ریشه مخزن یک فایل `.env` بسازید و مقدار کلید را با دستور زیر تولید کنید (Python استاندارد، بدون نصب کتابخانه اضافه):
-```powershell
-python -c "import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
-```
-مقدار خروجی را به‌عنوان `BIOMETRIC_ENCRYPTION_KEY` در فایل `.env` قرار دهید. همچنین توکن مدیر را عوض کنید:
-```dotenv
-ADMIN_API_TOKEN=یک-توکن-تصادفی-طولانی-و-محرمانه
-DEVICE_API_TOKEN=یک-توکن-جداگانه-و-محرمانه
-BIOMETRIC_ENCRYPTION_KEY=کلید-تولیدشده-در-مرحله-قبل
-```
-از فایل `.env` نسخه پشتیبان امن بگیرید؛ در صورت گم شدن کلید، قالب‌های رمزنگاری‌شده قابل بازیابی نیستند. هرگز کلید را در Git commit نکنید.
-
-سپس:
 ```bash
-docker compose up --build
+npm install
+npm run lint
+npm run build
 ```
-در داشبورد وارد «وبکم لپ‌تاپ» شوید. برای ثبت‌نام هر کارمند، رضایت صریح او را جداگانه دریافت کنید، کارمند را انتخاب کنید و «ثبت قالب چهره» را بزنید. برای ثبت ورود یا خروج، نوع رویداد را انتخاب و «شناسایی و ثبت برای بازبینی» را بزنید.
 
-**محدودیت‌های مهم:** این نسخه یک نمونه فنی آزمایشی است، نه سامانه زیست‌سنجی تأییدشده. آستانه شباهت پیش‌فرض باید با داده مجاز و محیط واقعی کالیبره شود؛ liveness و تشخیص حمله ارائه نشده است. همه رویدادها pending هستند و به تأیید انسانی نیاز دارند. از نتیجه برای تصمیم انضباطی، استخدامی یا کنترل دسترسی استفاده نکنید. پیش از ثبت داده کارکنان، الزامات قانونی و رضایت آگاهانه محل استقرار را بررسی کنید.
+## Security and privacy limitations
 
-## حریم خصوصی
-اطلاعات واقعی کارکنان یا تصاویر چهره را در Git قرار ندهید. پیش از پردازش زیست‌سنجی، بررسی حقوقی محل استقرار، مبنای قانونی، اطلاع‌رسانی، کنترل دسترسی، رمزنگاری، نگهداری محدود و حذف داده لازم است. این MVP گواهی امنیت یا انطباق قانونی نیست.
+- This is an experimental implementation, not a certified biometric system.
+- There is no presentation-attack detection (PAD) or liveness detection. Printed photos, screen replays, and other spoofing attacks may succeed.
+- The default similarity threshold is a starting value only. It has not been calibrated for your camera, lighting, workforce, or operating environment.
+- Similarity scores are not probabilities.
+- Every recognition result is marked `pending` and requires a human reviewer.
+- The browser currently sends a still image only after an explicit operator action; continuous background recognition is not implemented.
+- The current administrator token is a simple shared secret, not a full user identity and role-management system.
+- HTTPS, secret rotation, retention automation, incident response, and a formal biometric impact assessment are required before any real deployment.
+- Provide a meaningful non-biometric attendance alternative.
+
+Read [Privacy and Security](docs/PRIVACY_SECURITY.md), [Architecture](docs/ARCHITECTURE.md), and [Evaluation Plan](docs/EVALUATION.md) before enabling biometric processing.
+
+## License
+
+See [LICENSE](LICENSE).
