@@ -59,6 +59,7 @@ Human review queue
 - Browser-triggered still-image capture only; no continuous recognition loop.
 - No liveness or presentation-attack detection.
 - No calibrated threshold or independent accuracy evaluation.
+- A three-minute cooldown suppresses repeated webcam candidates for the same employee, direction, and laptop-webcam source; this is a basic duplicate guard, not a complete shift or attendance policy.
 - No multi-frame temporal confirmation or duplicate-event suppression for webcam recognition.
 - No production-grade identity provider, per-user RBAC, or signed device protocol.
 - No automated biometric retention/deletion schedule.
