@@ -416,15 +416,11 @@ def daily_report(
         .where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at <= end)
         .order_by(AttendanceEvent.occurred_at.desc())
     ).all()
-    present = db.scalar(
-        select(func.count(func.distinct(AttendanceEvent.employee_id))).where(
-            AttendanceEvent.occurred_at >= start,
-            AttendanceEvent.occurred_at <= end,
-            AttendanceEvent.review_status == "approved",
-            AttendanceEvent.direction == "in",
-            AttendanceEvent.employee_id.is_not(None),
-        )
-    ) or 0
+    latest_by_employee: dict[int, AttendanceEvent] = {}
+    for event in events:
+        if event.employee_id is not None and event.review_status == "approved":
+            latest_by_employee.setdefault(event.employee_id, event)
+    present = sum(1 for event in latest_by_employee.values() if event.direction == "in")
     pending = sum(1 for event in events if event.review_status == "pending")
     return {
         "date": day.isoformat(),
