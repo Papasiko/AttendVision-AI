@@ -6,7 +6,7 @@ name = "attendvision-api"
 version = "0.2.0"
 description = "Privacy-conscious attendance platform API"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.115,<1.0", "uvicorn[standard]>=0.30,<1.0", "sqlalchemy>=2.0,<3.0", "pydantic-settings>=2.4,<3.0", "psycopg[binary]>=3.2,<4.0", "alembic>=1.13,<2.0"]
+dependencies = ["fastapi>=0.115,<1.0", "uvicorn[standard]>=0.30,<1.0", "sqlalchemy>=2.0,<3.0", "pydantic-settings>=2.4,<3.0", "psycopg[binary]>=3.2,<4.0", "alembic>=1.13,<2.0", "opencv-contrib-python-headless==4.10.0.84", "numpy>=1.26,<2.0", "cryptography>=43.0,<46.0", "python-multipart>=0.0.9,<1.0"]
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.6"]
 [tool.setuptools.packages.find]
