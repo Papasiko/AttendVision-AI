@@ -1,7 +1,7 @@
 import json
 from datetime import date, datetime, time, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import Base, engine, get_db
 from app.models import AttendanceEvent, AuditLog, Device, Employee
+from app.face_recognition import FaceEngineError, best_match, decrypt_template, encrypt_template, extract_embedding
+from app.face_schemas import FaceEnrollmentResult, FaceRecognitionResult
 from app.schemas import (
     AttendanceEventCreate,
     AttendanceEventRead,
@@ -55,6 +57,113 @@ def day_bounds(day: date):
         datetime.combine(day, time.max, tzinfo=timezone.utc),
     )
 
+
+
+@app.post("/api/v1/employees/{employee_id}/face-enroll", response_model=FaceEnrollmentResult, tags=["biometrics"])
+async def enroll_employee_face(
+    employee_id: int,
+    consent: bool = Form(...),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_admin),
+):
+    employee = db.get(Employee, employee_id)
+    if employee is None:
+        raise HTTPException(status_code=404, detail="employee not found")
+    if employee.status != "active":
+        raise HTTPException(status_code=409, detail="only active employees can be enrolled")
+    if consent is not True:
+        raise HTTPException(status_code=400, detail="explicit biometric consent is required")
+    if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="upload a JPEG, PNG, or WebP image")
+    raw = await image.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="image exceeds 5 MB")
+    try:
+        encrypted = encrypt_template(extract_embedding(raw))
+    except FaceEngineError as exc:
+        status_code = 503 if "model" in str(exc).lower() or "key" in str(exc).lower() else 422
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    from datetime import datetime, timezone
+    employee.face_template = encrypted
+    employee.face_consent = True
+    employee.face_consent_at = datetime.now(timezone.utc)
+    audit(db, actor, "employee.face_enrolled", "employee", employee_id, "Encrypted template stored; source image discarded")
+    db.commit()
+    return FaceEnrollmentResult(employee_id=employee_id, enrolled=True, message="قالب رمزنگاری‌شده ثبت شد؛ تصویر خام ذخیره نشد.")
+
+
+@app.delete("/api/v1/employees/{employee_id}/face-template", tags=["biometrics"])
+def delete_employee_face(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_admin),
+):
+    employee = db.get(Employee, employee_id)
+    if employee is None:
+        raise HTTPException(status_code=404, detail="employee not found")
+    employee.face_template = None
+    employee.face_consent = False
+    employee.face_consent_at = None
+    audit(db, actor, "employee.face_deleted", "employee", employee_id, "Biometric template and consent flag deleted")
+    db.commit()
+    return {"deleted": True, "employee_id": employee_id}
+
+
+@app.post("/api/v1/face/recognize", response_model=FaceRecognitionResult, tags=["biometrics"])
+async def recognize_face(
+    direction: str = Form(..., pattern="^(in|out)$"),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_admin),
+):
+    if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="upload a JPEG, PNG, or WebP image")
+    raw = await image.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="image exceeds 5 MB")
+    try:
+        query_embedding = extract_embedding(raw)
+        enrolled = db.scalars(
+            select(Employee).where(
+                Employee.status == "active",
+                Employee.face_consent.is_(True),
+                Employee.face_template.is_not(None),
+            )
+        ).all()
+        matched_id, score = best_match(
+            query_embedding,
+            [(employee.id, employee.face_template) for employee in enrolled if employee.face_template],
+        )
+    except FaceEngineError as exc:
+        status_code = 503 if "model" in str(exc).lower() or "key" in str(exc).lower() else 422
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+    employee = db.get(Employee, matched_id) if matched_id is not None else None
+    now = datetime.now(timezone.utc)
+    event = AttendanceEvent(
+        event_key=f"webcam-{__import__('uuid').uuid4().hex}",
+        employee_id=matched_id,
+        direction=direction if matched_id is not None else "unknown",
+        occurred_at=now,
+        confidence=max(0.0, score),
+        review_status="pending",
+        source_device="laptop-webcam",
+        note=f"Face match candidate score={score:.4f}; requires human review" if employee else "No enrolled face matched; requires manual identification",
+    )
+    db.add(event)
+    db.flush()
+    audit(db, actor, "face.recognition_candidate", "attendance_event", event.id, f"matched={matched_id is not None}; score={score:.4f}")
+    db.commit()
+    return FaceRecognitionResult(
+        matched=employee is not None,
+        employee_id=employee.id if employee else None,
+        employee_name=employee.full_name if employee else None,
+        score=round(max(0.0, score), 4),
+        event_id=event.id,
+        review_status="pending",
+        message="نامزد شناسایی ثبت شد و باید توسط مدیر بازبینی شود." if employee else "چهره‌ای تطبیق داده نشد؛ رویداد برای شناسایی دستی ثبت شد.",
+    )
 
 @app.get("/health", tags=["system"])
 def health():
