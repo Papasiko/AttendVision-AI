@@ -3,10 +3,10 @@ services:
     build: ./backend
     environment:
       APP_ENV: development
-      DATABASE_URL: postgresql+psycopg://attendvision:attendvision_dev@db:5432/attendvision
+      DATABASE_URL: postgresql+psycopg://attendvision:${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_.env}@db:5432/attendvision
       API_CORS_ORIGINS: http://localhost:3000
-      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-change-this-admin-token-before-deployment}
-      DEVICE_API_TOKEN: ${DEVICE_API_TOKEN:-change-this-device-token-before-deployment}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?Set_ADMIN_API_TOKEN_in_.env}
+      DEVICE_API_TOKEN: ${DEVICE_API_TOKEN:?Set_DEVICE_API_TOKEN_in_.env}
       BIOMETRIC_ENCRYPTION_KEY: ${BIOMETRIC_ENCRYPTION_KEY:-}
       FACE_MATCH_THRESHOLD: ${FACE_MATCH_THRESHOLD:-0.45}
     ports:
@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: attendvision
       POSTGRES_USER: attendvision
-      POSTGRES_PASSWORD: attendvision_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_.env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
