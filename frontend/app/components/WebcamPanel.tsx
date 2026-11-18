@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-type Employee = { id: number; full_name: string; employee_code: string; status: string };
+type Employee = { id: number; full_name: string; employee_code: string; status: string; face_enrolled?: boolean };
 type Props = { token: string; employees: Employee[]; onComplete: () => void };
 type Result = { matched: boolean; employee_id?: number | null; employee_name?: string | null; score: number; event_id?: number | null; message: string };
 
@@ -70,6 +70,20 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
     return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("گرفتن تصویر ناموفق بود.")), "image/jpeg", 0.9));
   }
 
+
+  async function deleteTemplate() {
+    if (!employeeId || !window.confirm("Delete this employee's stored face template?")) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(API + "/api/v1/employees/" + employeeId + "/face-template", { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || "Template deletion failed.");
+      setMessage("Stored face template deleted.");
+      onComplete();
+    } catch (e) { setError(e instanceof Error ? e.message : "Template deletion failed."); }
+    finally { setBusy(false); }
+  }
+
   async function send(path: string, fields: Record<string, string>) {
     setBusy(true); setError(""); setResult(null);
     try {
@@ -122,13 +136,14 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
         <div className="inline-form">
           <select value={employeeId} onChange={e => setEmployeeId(e.target.value)}>
             <option value="">انتخاب کارمند</option>
-            {employees.filter(e => e.status === "active").map(e => <option key={e.id} value={e.id}>{e.employee_code} — {e.full_name}</option>)}
+            {employees.filter(e => e.status === "active").map(e => <option key={e.id} value={e.id}>{e.employee_code} — {e.full_name}{e.face_enrolled ? " (enrolled)" : ""}</option>)}
           </select>
           <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#c5d2e3", fontSize: 11 }}>
             <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
             رضایت صریح کارمند دریافت شده است
           </label>
-          <button className="primary" disabled={!running || !employeeId || !consent || busy} onClick={() => send(`/api/v1/employees/${employeeId}/face-enroll`, { consent: "true" })}>ثبت قالب چهره</button>
+          <button className="primary" disabled={!running || !employeeId || !consent || busy} onClick={() => send(`/api/v1/employees/${employeeId}/face-enroll`, { consent: "true" })}>Enroll Face Template</button>
+          <button className="reject" disabled={!employeeId || !employees.some(e => String(e.id) === employeeId && e.face_enrolled) || busy} onClick={deleteTemplate}>Delete Stored Template</button>
         </div>
       </div>
       <div style={{ borderTop: "1px solid #26364e", marginTop: 20, paddingTop: 16 }}>
