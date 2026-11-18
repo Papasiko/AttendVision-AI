@@ -1,8 +1,11 @@
+import csv
+import io
 import json
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -413,11 +416,15 @@ def daily_report(
         .where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at <= end)
         .order_by(AttendanceEvent.occurred_at.desc())
     ).all()
-    latest_by_employee: dict[int, AttendanceEvent] = {}
-    for event in events:
-        if event.employee_id is not None and event.review_status == "approved":
-            latest_by_employee.setdefault(event.employee_id, event)
-    present = sum(1 for event in latest_by_employee.values() if event.direction == "in")
+    present = db.scalar(
+        select(func.count(func.distinct(AttendanceEvent.employee_id))).where(
+            AttendanceEvent.occurred_at >= start,
+            AttendanceEvent.occurred_at <= end,
+            AttendanceEvent.review_status == "approved",
+            AttendanceEvent.direction == "in",
+            AttendanceEvent.employee_id.is_not(None),
+        )
+    ) or 0
     pending = sum(1 for event in events if event.review_status == "pending")
     return {
         "date": day.isoformat(),
@@ -427,6 +434,83 @@ def daily_report(
         "pending_review": pending,
         "events_today": len(events),
     }
+
+
+
+@app.get("/api/v1/reports/period", tags=["reports"])
+def period_report(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    if end_date < start_date:
+        raise HTTPException(status_code=422, detail="end_date must be on or after start_date")
+    if (end_date - start_date).days > 366:
+        raise HTTPException(status_code=422, detail="date range cannot exceed 367 days")
+    start = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+    end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=timezone.utc)
+    rows = db.execute(
+        select(AttendanceEvent, Employee.full_name, Employee.employee_code)
+        .outerjoin(Employee, Employee.id == AttendanceEvent.employee_id)
+        .where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
+        .order_by(AttendanceEvent.occurred_at.desc())
+    ).all()
+    approved = sum(1 for event, _, _ in rows if event.review_status == "approved")
+    pending = sum(1 for event, _, _ in rows if event.review_status == "pending")
+    rejected = sum(1 for event, _, _ in rows if event.review_status == "rejected")
+    unique_employees = len({event.employee_id for event, _, _ in rows if event.employee_id is not None and event.review_status == "approved"})
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "total_events": len(rows),
+        "approved_events": approved,
+        "pending_events": pending,
+        "rejected_events": rejected,
+        "employees_with_approved_events": unique_employees,
+    }
+
+
+@app.get("/api/v1/reports/export.csv", tags=["reports"])
+def export_attendance_csv(
+    start_date: date,
+    end_date: date,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    if end_date < start_date:
+        raise HTTPException(status_code=422, detail="end_date must be on or after start_date")
+    if (end_date - start_date).days > 366:
+        raise HTTPException(status_code=422, detail="date range cannot exceed 367 days")
+    start = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+    end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=timezone.utc)
+    rows = db.execute(
+        select(AttendanceEvent, Employee.full_name, Employee.employee_code)
+        .outerjoin(Employee, Employee.id == AttendanceEvent.employee_id)
+        .where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at < end)
+        .order_by(AttendanceEvent.occurred_at.asc())
+    ).all()
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["event_id", "employee_code", "employee_name", "direction", "occurred_at_utc", "review_status", "source_device", "similarity_score", "note"])
+    for event, full_name, employee_code in rows:
+        writer.writerow([
+            event.id,
+            employee_code or "",
+            full_name or "Unidentified",
+            event.direction,
+            event.occurred_at.isoformat(),
+            event.review_status,
+            event.source_device or "",
+            event.confidence if event.confidence is not None else "",
+            event.note or "",
+        ])
+    filename = f"attendvision-{start_date.isoformat()}-to-{end_date.isoformat()}.csv"
+    return Response(
+        content="\\ufeff" + output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/v1/audit", tags=["audit"])
