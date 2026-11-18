@@ -77,3 +77,55 @@ def test_daily_report_and_audit_endpoints():
     audit = client.get("/api/v1/audit", headers=ADMIN)
     assert audit.status_code == 200
     assert isinstance(audit.json(), list)
+
+
+def test_period_report_and_csv_export():
+    code = f"PERIOD-{datetime.now(timezone.utc).timestamp()}"
+    employee = client.post(
+        "/api/v1/employees",
+        json={"employee_code": code, "full_name": "Period Report Test"},
+        headers=ADMIN,
+    )
+    assert employee.status_code == 201
+    employee_id = employee.json()["id"]
+    occurred_at = datetime.now(timezone.utc).isoformat()
+    manual = client.post(
+        "/api/v1/attendance/manual",
+        json={
+            "employee_id": employee_id,
+            "direction": "in",
+            "occurred_at": occurred_at,
+            "note": "Approved test check-in",
+        },
+        headers=ADMIN,
+    )
+    assert manual.status_code == 201
+
+    day = datetime.now(timezone.utc).date().isoformat()
+    report = client.get(
+        f"/api/v1/reports/period?start_date={day}&end_date={day}",
+        headers=ADMIN,
+    )
+    assert report.status_code == 200
+    assert report.json()["total_events"] >= 1
+    assert report.json()["approved_events"] >= 1
+    assert report.json()["employees_with_approved_events"] >= 1
+
+    exported = client.get(
+        f"/api/v1/reports/export.csv?start_date={day}&end_date={day}",
+        headers=ADMIN,
+    )
+    assert exported.status_code == 200
+    assert "text/csv" in exported.headers["content-type"]
+    assert "employee_code" in exported.text
+    assert code in exported.text
+
+
+def test_period_report_rejects_invalid_ranges():
+    day = datetime.now(timezone.utc).date().isoformat()
+    earlier = "2000-01-01"
+    invalid = client.get(
+        f"/api/v1/reports/period?start_date={day}&end_date={earlier}",
+        headers=ADMIN,
+    )
+    assert invalid.status_code == 422
