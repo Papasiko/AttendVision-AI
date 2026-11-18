@@ -68,3 +68,7 @@ Human review queue
 ## Production direction
 
 A future edge deployment should perform capture and inference on a managed local node, use a durable event queue, sign device requests, and send only minimal attendance candidates to the API. A non-biometric fallback must remain available.
+
+## Product scope
+
+The application intentionally implements ordinary employee check-in and check-out only. Shift scheduling, lateness, overtime, payroll, and complex HR workflows are out of scope. Administrators can inspect an employee's attendance history, review webcam-generated candidates, and enter a reasoned manual correction.
