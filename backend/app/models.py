@@ -24,6 +24,10 @@ class Employee(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     attendance_events: Mapped[list["AttendanceEvent"]] = relationship(back_populates="employee")
 
+    @property
+    def face_enrolled(self) -> bool:
+        return self.face_template is not None and self.face_consent
+
 
 class Device(Base):
     __tablename__ = "devices"
