@@ -489,17 +489,21 @@ def export_attendance_csv(
     output = io.StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(["event_id", "employee_code", "employee_name", "direction", "occurred_at_utc", "review_status", "source_device", "similarity_score", "note"])
+    def safe_cell(value):
+        if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
+            return "\u0027" + value
+        return value
     for event, full_name, employee_code in rows:
         writer.writerow([
             event.id,
-            employee_code or "",
-            full_name or "Unidentified",
+            safe_cell(employee_code or ""),
+            safe_cell(full_name or "Unidentified"),
             event.direction,
             event.occurred_at.isoformat(),
             event.review_status,
-            event.source_device or "",
+            safe_cell(event.source_device or ""),
             event.confidence if event.confidence is not None else "",
-            event.note or "",
+            safe_cell(event.note or ""),
         ])
     filename = f"attendvision-{start_date.isoformat()}-to-{end_date.isoformat()}.csv"
     return Response(
