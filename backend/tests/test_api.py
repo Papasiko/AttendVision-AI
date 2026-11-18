@@ -83,7 +83,7 @@ def test_period_report_and_csv_export():
     code = f"PERIOD-{datetime.now(timezone.utc).timestamp()}"
     employee = client.post(
         "/api/v1/employees",
-        json={"employee_code": code, "full_name": "Period Report Test"},
+        json={"employee_code": code, "full_name": "=1+1"},
         headers=ADMIN,
     )
     assert employee.status_code == 201
@@ -95,7 +95,7 @@ def test_period_report_and_csv_export():
             "employee_id": employee_id,
             "direction": "in",
             "occurred_at": occurred_at,
-            "note": "Approved test check-in",
+            "note": "=HYPERLINK(\"https://example.invalid\")",
         },
         headers=ADMIN,
     )
@@ -119,6 +119,8 @@ def test_period_report_and_csv_export():
     assert "text/csv" in exported.headers["content-type"]
     assert "employee_code" in exported.text
     assert code in exported.text
+    assert "'=1+1" in exported.text
+    assert "'=HYPERLINK(" in exported.text
 
 
 def test_period_report_rejects_invalid_ranges():
