@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import Base, engine, get_db
-from app.models import AttendanceEvent, AuditLog, Device, Employee
 from app.face_recognition import FaceEngineError, best_match, encrypt_template, extract_embedding
 from app.face_schemas import FaceEnrollmentResult, FaceRecognitionResult
+from app.models import AttendanceEvent, AuditLog, Device, Employee
 from app.schemas import (
     AttendanceEventCreate,
     AttendanceEventRead,
