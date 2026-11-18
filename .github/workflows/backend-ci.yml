@@ -19,6 +19,15 @@ jobs:
       - run: ruff check .
       - run: DATABASE_URL=sqlite:///./migration-check.db alembic upgrade head
       - run: pytest -q
+      - name: Validate Docker Compose and build API image
+        working-directory: ..
+        env:
+          ADMIN_API_TOKEN: ci-admin-token-not-for-production
+          DEVICE_API_TOKEN: ci-device-token-not-for-production
+          POSTGRES_PASSWORD: 0123456789abcdef0123456789abcdef
+        run: |
+          docker compose config --quiet
+          docker compose build api
   frontend:
     runs-on: ubuntu-latest
     defaults:
