@@ -30,5 +30,6 @@ jobs:
         with:
           node-version: "20"
       - run: npm install
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run build
