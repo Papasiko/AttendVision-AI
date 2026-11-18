@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import date, datetime, time, timezone
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import Base, engine, get_db
 from app.models import AttendanceEvent, AuditLog, Device, Employee
-from app.face_recognition import FaceEngineError, best_match, decrypt_template, encrypt_template, extract_embedding
+from app.face_recognition import FaceEngineError, best_match, encrypt_template, extract_embedding
 from app.face_schemas import FaceEnrollmentResult, FaceRecognitionResult
 from app.schemas import (
     AttendanceEventCreate,
@@ -58,7 +59,6 @@ def day_bounds(day: date):
     )
 
 
-
 @app.post("/api/v1/employees/{employee_id}/face-enroll", response_model=FaceEnrollmentResult, tags=["biometrics"])
 async def enroll_employee_face(
     employee_id: int,
@@ -84,7 +84,6 @@ async def enroll_employee_face(
     except FaceEngineError as exc:
         status_code = 503 if "model" in str(exc).lower() or "key" in str(exc).lower() else 422
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
-    from datetime import datetime, timezone
     employee.face_template = encrypted
     employee.face_consent = True
     employee.face_consent_at = datetime.now(timezone.utc)
@@ -142,7 +141,7 @@ async def recognize_face(
     employee = db.get(Employee, matched_id) if matched_id is not None else None
     now = datetime.now(timezone.utc)
     event = AttendanceEvent(
-        event_key=f"webcam-{__import__('uuid').uuid4().hex}",
+        event_key=f"webcam-{uuid.uuid4().hex}",
         employee_id=matched_id,
         direction=direction if matched_id is not None else "unknown",
         occurred_at=now,
