@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -196,8 +196,12 @@ async def recognize_face(
     )
 
 @app.get("/health", tags=["system"])
-def health():
-    return {"status": "ok", "service": "attendvision-api", "environment": settings.app_env}
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(select(1))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database is unavailable") from exc
+    return {"status": "ok", "service": "attendvision-api", "environment": settings.app_env, "database": "ok"}
 
 
 @app.get("/api/v1/auth/check", tags=["auth"])
