@@ -7,11 +7,12 @@ A privacy-conscious, web-based attendance management system built with **FastAPI
 ## Features
 
 - Administrator API access using a Bearer token
-- Employee and device management
+- Employee management and individual attendance history
 - Idempotent attendance event ingestion
 - Three-minute duplicate suppression for repeated webcam submissions with the same employee and direction
 - Human review queue with approval and rejection
-- Daily attendance summaries and CSV export
+- Daily attendance summaries, date-range reports, and CSV export
+- Administrator-entered attendance corrections with an audit trail
 - Audit logging for administrative actions
 - Browser-based laptop webcam preview
 - Explicit, operator-confirmed face enrollment
@@ -107,9 +108,13 @@ Open http://localhost:3000 and sign in using the value of `ADMIN_API_TOKEN` from
 5. Obtain and document the employee's informed, freely given consent through your organization's approved process.
 6. Select the employee and use **Enroll Face Template**. The checkbox in the UI is an operator attestation; it is not a substitute for a consent record or legal review.
 7. Select **Check-in** or **Check-out** and press **Recognize and Submit for Review**.
-8. Review every candidate in the **Review Queue** before treating it as an attendance record.
+8. Review every candidate in the **Review Queue** before treating it as an attendance record. Administrators can also add a manual check-in or check-out from the Attendance page; the action requires a reason and is audited.
 
 Camera access works on `localhost`. If the dashboard is accessed from another device, browsers generally require HTTPS to grant camera access.
+
+## Scope
+
+This project intentionally focuses on ordinary check-in/check-out attendance. Shift scheduling, lateness calculations, overtime, payroll, and complex HR workflows are out of scope.
 
 ## API endpoints
 
