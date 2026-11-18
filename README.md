@@ -9,6 +9,7 @@ A privacy-conscious, web-based attendance management system built with **FastAPI
 - Administrator API access using a Bearer token
 - Employee and device management
 - Idempotent attendance event ingestion
+- Three-minute duplicate suppression for repeated webcam submissions with the same employee and direction
 - Human review queue with approval and rejection
 - Daily attendance summaries and CSV export
 - Audit logging for administrative actions
