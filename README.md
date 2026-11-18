@@ -65,14 +65,17 @@ Generate a Fernet-compatible encryption key:
 python -c "import secrets,base64; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
 ```
 
-Create a `.env` file in the repository root:
+Copy `.env.example` to `.env` in the repository root, then replace every placeholder with a newly generated secret:
 
 ```dotenv
 ADMIN_API_TOKEN=replace-with-a-long-random-admin-secret
 DEVICE_API_TOKEN=replace-with-a-different-device-secret
-BIOMETRIC_ENCRYPTION_KEY=paste-the-generated-key-here
+POSTGRES_PASSWORD=replace-with-a-long-random-hex-password
+BIOMETRIC_ENCRYPTION_KEY=paste-the-generated-fernet-key-here
 FACE_MATCH_THRESHOLD=0.45
 ```
+
+On Windows PowerShell, copy the template with `Copy-Item .env.example .env`; on macOS/Linux use `cp .env.example .env`. Generate secrets with a password manager or a cryptographically secure random generator. For the biometric key, use the Python command above. The API container will refuse to start if the required administrator, device, or database secrets are missing; do not use example values in a real environment.
 
 Keep this file private. Never commit secrets or real employee biometric data. Back up the encryption key securely: encrypted templates cannot be recovered if the key is lost.
 
@@ -82,7 +85,7 @@ Keep this file private. Never commit secrets or real employee biometric data. Ba
 docker compose up --build
 ```
 
-The first build downloads the YuNet and SFace model files. API documentation is available at:
+The first build downloads the YuNet and SFace model files and may take several minutes. Keep the root `.env` file private. API documentation is available at:
 
 - API health: http://localhost:8000/health
 - OpenAPI docs: http://localhost:8000/docs
