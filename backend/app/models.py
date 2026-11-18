@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,6 +18,9 @@ class Employee(Base):
     full_name: Mapped[str] = mapped_column(String(160), index=True)
     department: Mapped[str | None] = mapped_column(String(120), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
+    face_template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    face_consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    face_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     attendance_events: Mapped[list["AttendanceEvent"]] = relationship(back_populates="employee")
 
@@ -58,4 +61,4 @@ class AuditLog(Base):
     entity_type: Mapped[str] = mapped_column(String(40))
     entity_id: Mapped[str] = mapped_column(String(80))
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
