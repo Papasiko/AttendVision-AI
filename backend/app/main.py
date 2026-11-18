@@ -302,11 +302,14 @@ def update_device(
 def list_events(
     limit: int = Query(default=100, ge=1, le=500),
     day: date | None = None,
+    employee_id: int | None = Query(default=None, ge=1),
     review_status: str | None = Query(default=None, pattern="^(pending|approved|rejected)$"),
     db: Session = Depends(get_db),
     _: str = Depends(require_admin),
 ):
     query = select(AttendanceEvent)
+    if employee_id is not None:
+        query = query.where(AttendanceEvent.employee_id == employee_id)
     if day:
         start, end = day_bounds(day)
         query = query.where(AttendanceEvent.occurred_at >= start, AttendanceEvent.occurred_at <= end)
