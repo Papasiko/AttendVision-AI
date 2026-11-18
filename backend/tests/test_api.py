@@ -68,6 +68,13 @@ def test_device_can_ingest_idempotent_events_and_admin_can_review():
     )
     assert reviewed.status_code == 200
     assert reviewed.json()["review_status"] == "approved"
+    history = client.get(
+        f"/api/v1/attendance/events?employee_id={employee.json()['id']}",
+        headers=ADMIN,
+    )
+    assert history.status_code == 200
+    assert all(item["employee_id"] == employee.json()["id"] for item in history.json())
+
 
 
 def test_daily_report_and_audit_endpoints():
