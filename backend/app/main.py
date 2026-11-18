@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -140,6 +140,34 @@ async def recognize_face(
 
     employee = db.get(Employee, matched_id) if matched_id is not None else None
     now = datetime.now(timezone.utc)
+
+    # Avoid repeated webcam submissions creating multiple attendance candidates
+    # for the same employee and direction during a short cooldown window.
+    if employee is not None:
+        cooldown_start = now - timedelta(minutes=3)
+        duplicate = db.scalar(
+            select(AttendanceEvent)
+            .where(
+                AttendanceEvent.employee_id == employee.id,
+                AttendanceEvent.direction == direction,
+                AttendanceEvent.source_device == "laptop-webcam",
+                AttendanceEvent.occurred_at >= cooldown_start,
+                AttendanceEvent.review_status.in_(["pending", "approved"]),
+            )
+            .order_by(AttendanceEvent.occurred_at.desc())
+            .limit(1)
+        )
+        if duplicate is not None:
+            return FaceRecognitionResult(
+                matched=True,
+                employee_id=employee.id,
+                employee_name=employee.full_name,
+                score=round(max(0.0, score), 4),
+                event_id=duplicate.id,
+                review_status=duplicate.review_status,
+                message="A recent event already exists for this employee and direction; duplicate submission was suppressed.",
+            )
+
     event = AttendanceEvent(
         event_key=f"webcam-{uuid.uuid4().hex}",
         employee_id=matched_id,
