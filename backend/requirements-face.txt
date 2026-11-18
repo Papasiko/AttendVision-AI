@@ -1,0 +1,4 @@
+opencv-contrib-python-headless==4.10.0.84
+numpy>=1.26,<2.0
+cryptography>=43.0,<46.0
+python-multipart>=0.0.9,<1.0
