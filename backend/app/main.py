@@ -1,6 +1,5 @@
 import json
 from datetime import date, datetime, time, timezone
-from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
