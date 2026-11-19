@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
 from app.config import settings
+import app.main as main_module
 from app.main import app
 
 settings.admin_api_token = "test-admin-token"
@@ -129,6 +130,64 @@ def test_period_report_and_csv_export():
     assert code in exported.text
     assert "'=1+1" in exported.text
     assert "'=HYPERLINK(" in exported.text
+
+
+def test_automatic_face_scan_does_not_create_unidentified_events(monkeypatch):
+    monkeypatch.setattr(main_module, "extract_embedding", lambda image: [1.0])
+    monkeypatch.setattr(main_module, "best_match", lambda query, templates: (None, -1.0))
+    before_ids = {
+        event["id"]
+        for event in client.get("/api/v1/attendance/events?limit=500", headers=ADMIN).json()
+    }
+
+    response = client.post(
+        "/api/v1/face/recognize",
+        data={"direction": "in", "auto_scan": "true"},
+        files={"image": ("frame.jpg", b"frame", "image/jpeg")},
+        headers=ADMIN,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["matched"] is False
+    assert response.json()["event_id"] is None
+    after_ids = {
+        event["id"]
+        for event in client.get("/api/v1/attendance/events?limit=500", headers=ADMIN).json()
+    }
+    assert after_ids == before_ids
+
+
+def test_automatic_face_scan_creates_one_candidate_and_suppresses_repeats(monkeypatch):
+    code = f"AUTO-{datetime.now(timezone.utc).timestamp()}"
+    employee = client.post(
+        "/api/v1/employees",
+        json={"employee_code": code, "full_name": "Automatic Scan Test"},
+        headers=ADMIN,
+    )
+    assert employee.status_code == 201
+    employee_id = employee.json()["id"]
+    monkeypatch.setattr(main_module, "extract_embedding", lambda image: [1.0])
+    monkeypatch.setattr(main_module, "best_match", lambda query, templates: (employee_id, 0.99))
+
+    payload = {
+        "data": {"direction": "in", "auto_scan": "true"},
+        "files": {"image": ("frame.jpg", b"frame", "image/jpeg")},
+        "headers": ADMIN,
+    }
+    first = client.post("/api/v1/face/recognize", **payload)
+    second = client.post("/api/v1/face/recognize", **payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["matched"] is True
+    assert first.json()["review_status"] == "pending"
+    assert second.json()["event_id"] == first.json()["event_id"]
+    events = client.get(
+        f"/api/v1/attendance/events?employee_id={employee_id}",
+        headers=ADMIN,
+    ).json()
+    webcam_events = [event for event in events if event["source_device"] == "laptop-webcam"]
+    assert len(webcam_events) == 1
 
 
 def test_period_report_rejects_invalid_ranges():
