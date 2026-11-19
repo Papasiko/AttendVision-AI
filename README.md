@@ -39,7 +39,7 @@ Laptop webcam -> Browser capture -> FastAPI -> YuNet / SFace
                               Admin dashboard
 ```
 
-The browser captures a still frame only after an operator presses an action button. The API processes the image in memory, extracts a face feature vector, and discards the uploaded image after the request. Only an encrypted feature template is stored for enrolled employees.
+The browser does not continuously upload a video stream. Face enrollment captures a still frame only when the operator explicitly presses the enrollment action. Automatic recognition starts only after the operator explicitly presses **Start automatic scanning**; while that session is active, one still frame is submitted every three seconds. The API processes each uploaded image in memory and does not intentionally persist the raw frame. For enrolled employees, only an encrypted face feature template is stored. **This is not liveness detection:** the system does not verify that a face comes from a live person, so photos or screen replays may fool it.
 
 ## Requirements
 
