@@ -105,12 +105,12 @@ Open http://localhost:3000 and sign in using the value of `ADMIN_API_TOKEN` from
 ## Laptop webcam workflow
 
 1. Open the **Laptop Webcam** section in the dashboard.
-2. Allow the browser to access the camera.
-3. Select the intended webcam and start the preview.
-4. Create employee records in the **Employees** section.
-5. Obtain and document the employee's informed, freely given consent through your organization's approved process.
-6. Select the employee and use **Enroll Face Template**. The checkbox in the UI is an operator attestation; it is not a substitute for a consent record or legal review.
-7. Select **Check-in** or **Check-out** and press **Recognize and Submit for Review**.
+2. Allow the browser to access the camera and select the intended webcam.
+3. Create employee records in the **Employees** section.
+4. Obtain and document the employee's informed, freely given consent through your organization's approved process.
+5. With the camera preview running, select the employee and use **Enroll Face Template**. The checkbox in the UI is an operator attestation; it is not a substitute for a consent record or legal review.
+6. For automatic scanning, select **Check-in** or **Check-out**, then explicitly press **Start automatic scanning**. While enabled, the browser submits one still frame every three seconds; press **Stop automatic scanning** or turn off the camera to end the session. The selected direction stays fixed until scanning is stopped and changed.
+7. Automatic frames that do not match an enrolled employee do not create unidentified attendance rows. Matched employees create a pending candidate, with repeat matches suppressed for three minutes.
 8. Review every candidate in the **Review Queue** before treating it as an attendance record. Administrators can also add a manual check-in or check-out from the Attendance page; the action requires a reason and is audited.
 
 Camera access works on `localhost`. If the dashboard is accessed from another device, browsers generally require HTTPS to grant camera access.
