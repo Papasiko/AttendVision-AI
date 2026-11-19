@@ -11,7 +11,7 @@ Do not enroll real employees until the organization has completed a jurisdiction
 | Data | Handling |
 |---|---|
 | Webcam preview | Displayed locally in the browser |
-| Enrollment / recognition frame | Sent only after an operator action; processed in API memory |
+| Enrollment frame | A still image is captured and sent only when the operator explicitly starts face enrollment; processed in API memory |\n| Automatic recognition frames | Sent only after the operator explicitly starts an automatic-scanning session; one still frame every three seconds while the session is active; processed in API memory |
 | Raw uploaded frame | Not intentionally persisted by application code |
 | Face feature template | Encrypted with Fernet before database storage |
 | Attendance candidate | Stored with pending review status |
@@ -19,7 +19,7 @@ Do not enroll real employees until the organization has completed a jurisdiction
 
 Infrastructure outside the application (for example, reverse proxies, container logs, database backups, endpoint monitoring, and browser extensions) may have independent data retention. Review these systems before deployment.
 
-## Required controls before real-world use
+## Image capture and liveness clarification\n\nThe application does not continuously upload webcam video. Face enrollment requires an explicit operator action. Automatic scanning also requires the operator to start a session; only while that session is active does the browser submit one still frame every three seconds. The raw frame is processed in API memory and is not intentionally persisted by application code.\n\n**Liveness detection / presentation-attack detection (PAD) is not implemented.** The application does not establish that the person in an image is physically present in front of the camera. A printed photograph, a phone display, or a video replay may be accepted by the face-matching pipeline.\n\n## Required controls before real-world use
 
 1. Obtain jurisdiction-specific legal advice and identify a valid lawful basis for biometric processing.
 2. Provide clear notice and obtain valid, informed, freely given consent where consent is the applicable basis.
