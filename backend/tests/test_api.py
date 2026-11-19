@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 
-from app.config import settings
 import app.main as main_module
+from app.config import settings
 from app.main import app
 
 settings.admin_api_token = "test-admin-token"
