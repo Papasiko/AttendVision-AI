@@ -115,6 +115,7 @@ def delete_employee_face(
 @app.post("/api/v1/face/recognize", response_model=FaceRecognitionResult, tags=["biometrics"])
 async def recognize_face(
     direction: str = Form(..., pattern="^(in|out)$"),
+    auto_scan: bool = Form(False),
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
     actor: str = Depends(require_admin),
@@ -143,6 +144,17 @@ async def recognize_face(
 
     employee = db.get(Employee, matched_id) if matched_id is not None else None
     now = datetime.now(timezone.utc)
+
+    # Automatic scanning may inspect many frames. Do not create an unidentified
+    # attendance row for every passer-by whose face is not enrolled.
+    if auto_scan and employee is None:
+        return FaceRecognitionResult(
+            matched=False,
+            score=round(max(0.0, score), 4),
+            event_id=None,
+            review_status=None,
+            message="No enrolled employee matched; no automatic attendance event was created.",
+        )
 
     # Avoid repeated webcam submissions creating multiple attendance candidates
     # for the same employee and direction during a short cooldown window.
