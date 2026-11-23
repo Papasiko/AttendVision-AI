@@ -183,7 +183,6 @@ npm run build
 - The browser currently sends a still image only after an explicit operator action; continuous background recognition is not implemented.
 - The API still validates `ADMIN_API_TOKEN`; the same-origin Next.js proxy adds it server-side for dashboard and webcam requests, and the browser never receives the token.
 - The dashboard has no interactive user sign-in. Anyone who can reach the dashboard can perform administrator actions; keep it on localhost or a trusted private network and do not expose it publicly.
-- The dashboard has no interactive sign-in: anyone who can reach it can perform administrator actions. Keep it bound to localhost or a trusted private network and do not expose it publicly.
 - The current administrator token is a simple shared secret, not a full user identity and role-management system.
 - HTTPS, secret rotation, retention automation, incident response, and a formal biometric impact assessment are required before any real deployment.
 - Provide a meaningful non-biometric attendance alternative.
