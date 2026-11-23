@@ -2,13 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 
 type Employee = { id: number; full_name: string; employee_code: string; status: string; face_enrolled?: boolean };
-type Props = { token: string; employees: Employee[]; onComplete: () => void };
+type Props = { employees: Employee[]; onComplete: () => void };
 type Result = { matched: boolean; employee_id?: number | null; employee_name?: string | null; score: number; event_id?: number | null; review_status?: string | null; message: string };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AUTO_SCAN_INTERVAL_MS = 3000;
 
-export default function WebcamPanel({ token, employees, onComplete }: Props) {
+export default function WebcamPanel({ employees, onComplete }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanInProgressRef = useRef(false);
@@ -82,9 +81,8 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(API + "/api/v1/employees/" + employeeId + "/face-template", {
+      const response = await fetch("/api/v1/employees/" + employeeId + "/face-template", {
         method: "DELETE",
-        headers: { Authorization: "Bearer " + token },
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail || "Template deletion failed.");
@@ -106,9 +104,8 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
       const form = new FormData();
       for (const [key, value] of Object.entries(fields)) form.append(key, value);
       form.append("image", blob, "webcam.jpg");
-      const response = await fetch(API + path, {
+      const response = await fetch(path, {
         method: "POST",
-        headers: { Authorization: "Bearer " + token },
         body: form,
       });
       const body = await response.json().catch(() => ({}));
@@ -150,10 +147,9 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
         form.append("auto_scan", "true");
         form.append("image", blob, "automatic-webcam.jpg");
 
-        const response = await fetch(API + "/api/v1/face/recognize", {
+        const response = await fetch("/api/v1/face/recognize", {
           method: "POST",
-          headers: { Authorization: "Bearer " + token },
-          body: form,
+            body: form,
         });
         const body = await response.json().catch(() => ({}));
         if (cancelled) return;
@@ -191,7 +187,7 @@ export default function WebcamPanel({ token, employees, onComplete }: Props) {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [autoScanning, direction, onComplete, running, token]);
+  }, [autoScanning, direction, onComplete, running]);
 
   useEffect(() => {
     refreshDevices().catch(() => setError("مرورگر نتوانست فهرست دوربین‌ها را بخواند."));
