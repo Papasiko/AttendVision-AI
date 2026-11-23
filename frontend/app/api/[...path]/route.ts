@@ -1,18 +1,57 @@
 import { NextRequest } from "next/server";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
+function readAdminTokenFromRootEnv(): string | undefined {
+  // In local development Next.js is started from the frontend directory.
+  // The repository-root .env is therefore one directory above process.cwd().
+  const candidates = [
+    path.resolve(process.cwd(), "..", ".env"),
+    path.resolve(process.cwd(), ".env"),
+  ];
+
+  for (const envPath of candidates) {
+    if (!existsSync(envPath)) continue;
+
+    const contents = readFileSync(envPath, "utf8").replace(/^\uFEFF/, "");
+    const line = contents
+      .split(/\r?\n/)
+      .filter((entry) => /^\s*ADMIN_API_TOKEN\s*=/.test(entry))
+      .at(-1);
+
+    if (!line) continue;
+
+    let value = line.slice(line.indexOf("=") + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (value && !value.startsWith("#")) return value;
+  }
+
+  return undefined;
+}
+
 async function proxy(request: NextRequest, context: RouteContext): Promise<Response> {
-  const { path } = await context.params;
-  const adminToken = process.env.ADMIN_API_TOKEN;
+  const { path: segments } = await context.params;
+  const adminToken = process.env.ADMIN_API_TOKEN || readAdminTokenFromRootEnv();
 
   if (!adminToken) {
     return Response.json(
-      { detail: "Server configuration error: ADMIN_API_TOKEN is missing from the repository-root .env file." },
+      {
+        detail:
+          "Server configuration error: ADMIN_API_TOKEN was not found in the Next.js server environment or repository-root .env file.",
+      },
       { status: 503 },
     );
   }
@@ -21,7 +60,8 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
     process.env.ATTENDVISION_API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     "http://127.0.0.1:8000";
-  const backendPath = path.join("/") === "health" ? "/health" : `/api/${path.join("/")}`;
+  const backendPath =
+    segments.join("/") === "health" ? "/health" : `/api/${segments.join("/")}`;
   const target = new URL(backendPath, backendOrigin);
   target.search = request.nextUrl.search;
 
