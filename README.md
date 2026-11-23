@@ -100,7 +100,27 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The dashboard opens directly and reads `ADMIN_API_TOKEN` from the repository-root `.env` through the Next.js server-side proxy; there is no browser token prompt.
+Open http://localhost:3000. The dashboard opens directly; there is no browser token prompt. For each API request, the Next.js server-side proxy first uses the server's `ADMIN_API_TOKEN` environment variable and otherwise reads `ADMIN_API_TOKEN` from the repository-root `.env` file. The token is added to the upstream request on the server and is not sent to browser JavaScript.
+
+#### Windows PowerShell notes
+
+From Windows PowerShell 5.1, use the Windows command shim if script execution blocks `npm`:
+
+```powershell
+cd C:\Users\<your-user>\AttendVision-AI
+docker compose up -d --build
+cd frontend
+npm.cmd install
+npm.cmd run dev
+```
+
+Keep the root `.env` file in the project root (next to `docker-compose.yml`), not inside `frontend`. It must contain a non-empty line in this format:
+
+```dotenv
+ADMIN_API_TOKEN=your-admin-secret
+```
+
+If the dashboard reports that `ADMIN_API_TOKEN` is missing, stop the Next.js process with `Ctrl+C`, confirm the root `.env` file and variable name, then restart `npm.cmd run dev`. Do not paste the secret into browser code or commit `.env` to Git.
 
 ## Laptop webcam workflow
 
@@ -161,7 +181,8 @@ npm run build
 - Similarity scores are not probabilities.
 - Every recognition result is marked `pending` and requires a human reviewer.
 - The browser currently sends a still image only after an explicit operator action; continuous background recognition is not implemented.
-- The API still validates `ADMIN_API_TOKEN`, but the dashboard proxy supplies it server-side so the browser never sees it.
+- The API still validates `ADMIN_API_TOKEN`; the same-origin Next.js proxy adds it server-side for dashboard and webcam requests, and the browser never receives the token.
+- The dashboard has no interactive user sign-in. Anyone who can reach the dashboard can perform administrator actions; keep it on localhost or a trusted private network and do not expose it publicly.
 - The dashboard has no interactive sign-in: anyone who can reach it can perform administrator actions. Keep it bound to localhost or a trusted private network and do not expose it publicly.
 - The current administrator token is a simple shared secret, not a full user identity and role-management system.
 - HTTPS, secret rotation, retention automation, incident response, and a formal biometric impact assessment are required before any real deployment.
