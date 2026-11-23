@@ -83,7 +83,19 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
     init.body = await request.arrayBuffer();
   }
 
-  const upstream = await fetch(target, init);
+  let upstream: Response;
+  try {
+    upstream = await fetch(target, init);
+  } catch {
+    return Response.json(
+      {
+        detail:
+          "Unable to reach the AttendVision API. Check that the backend is running and ATTENDVISION_API_URL is correct.",
+      },
+      { status: 502 },
+    );
+  }
+
   const responseHeaders = new Headers();
   for (const name of ["content-type", "content-disposition", "cache-control"]) {
     const value = upstream.headers.get(name);
