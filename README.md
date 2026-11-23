@@ -6,7 +6,7 @@ A privacy-conscious, web-based attendance management system built with **FastAPI
 
 ## Features
 
-- Administrator API access using a Bearer token
+- Dashboard opens without a token prompt; a same-origin Next.js proxy attaches the administrator Bearer token server-side
 - Employee management and individual attendance history
 - Idempotent attendance event ingestion
 - Three-minute duplicate suppression for repeated webcam submissions with the same employee and direction
@@ -24,7 +24,7 @@ A privacy-conscious, web-based attendance management system built with **FastAPI
 ## Architecture
 
 ```text
-Laptop webcam -> Browser capture -> FastAPI -> YuNet / SFace
+Laptop webcam -> Browser capture -> Next.js server proxy -> FastAPI -> YuNet / SFace
                                       |
                                       v
                               Encrypted face template
@@ -100,7 +100,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 and sign in using the value of `ADMIN_API_TOKEN` from your root `.env` file.
+Open http://localhost:3000. The dashboard opens directly and reads `ADMIN_API_TOKEN` from the repository-root `.env` through the Next.js server-side proxy; there is no browser token prompt.
 
 ## Laptop webcam workflow
 
@@ -161,6 +161,8 @@ npm run build
 - Similarity scores are not probabilities.
 - Every recognition result is marked `pending` and requires a human reviewer.
 - The browser currently sends a still image only after an explicit operator action; continuous background recognition is not implemented.
+- The API still validates `ADMIN_API_TOKEN`, but the dashboard proxy supplies it server-side so the browser never sees it.
+- The dashboard has no interactive sign-in: anyone who can reach it can perform administrator actions. Keep it bound to localhost or a trusted private network and do not expose it publicly.
 - The current administrator token is a simple shared secret, not a full user identity and role-management system.
 - HTTPS, secret rotation, retention automation, incident response, and a formal biometric impact assessment are required before any real deployment.
 - Provide a meaningful non-biometric attendance alternative.
