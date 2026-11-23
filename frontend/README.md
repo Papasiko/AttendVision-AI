@@ -2,7 +2,7 @@
 
 The Next.js dashboard is connected to the FastAPI backend and provides:
 
-- Administrator sign-in using the configured Bearer token
+- No dashboard token prompt; the Next.js server-side proxy attaches the API Bearer token without exposing it to browser code
 - Employee creation and employee listing
 - Daily overview and attendance history
 - Manual check-in / check-out with a required reason
@@ -26,9 +26,11 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 and sign in with the `ADMIN_API_TOKEN` value from the root `.env` file.
+Open http://localhost:3000. The dashboard opens directly and reads `ADMIN_API_TOKEN` from the repository-root `.env` file on the Next.js server. No token is entered in the browser.
 
-The dashboard uses `NEXT_PUBLIC_API_URL` when provided; otherwise it connects to `http://localhost:8000`. Set this variable at build time if the API is hosted elsewhere.
+The server-side proxy connects to `http://127.0.0.1:8000` by default. Set `ATTENDVISION_API_URL` in the repository-root `.env` if the API is hosted elsewhere. The administrator token is never sent to browser JavaScript.
+
+> **Access note:** The dashboard has no interactive sign-in. Anyone who can reach the dashboard can perform administrator actions. Keep it on localhost or a trusted private network; do not expose it publicly.
 
 ## Webcam notes
 
